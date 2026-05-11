@@ -224,6 +224,146 @@ def render_error(message: str):
         border_style="red",
     ))
     console.print(Padding(
-        Text('Try: python main.py "Portugal vs Spain"  or  python main.py "show sports"', style="dim"),
+        Text('Try: "Portugal vs Spain"  or  "show sports"  or  "trades"', style="dim"),
         (0, 2)
     ))
+
+
+def render_trades(trades: list, stats: dict) -> None:
+    """Render the full trade ledger with summary stats."""
+    console.print()
+
+    if not trades:
+        console.print(Panel(
+            Text("  No trades logged yet.\n  After a prediction, choose to log it as a trade.", style="dim"),
+            title="[bold]Trade History[/bold]",
+            border_style="dim",
+        ))
+        return
+
+    table = Table(
+        box=box.ROUNDED,
+        border_style="bright_blue",
+        header_style="bold dim",
+        padding=(0, 1),
+        title="[bold white]Trade History[/bold white]",
+    )
+    table.add_column("ID",       style="dim",          min_width=8)
+    table.add_column("Date",     style="dim",          min_width=10)
+    table.add_column("Match",                          min_width=24)
+    table.add_column("Bet",                            min_width=12)
+    table.add_column("Edge",     justify="right",      min_width=7)
+    table.add_column("Stake",    justify="right",      min_width=6)
+    table.add_column("Odds",     justify="right",      min_width=5)
+    table.add_column("Status",   justify="center",     min_width=9)
+    table.add_column("P&L",      justify="right",      min_width=8)
+
+    for t in reversed(trades):
+        status = t["status"]
+        status_text, status_style = {
+            "pending": ("pending", "dim yellow"),
+            "won":     ("✓ won",   "bright_green"),
+            "lost":    ("✗ lost",  "red"),
+        }.get(status, (status, "white"))
+
+        pnl = t.get("pnl")
+        if pnl is None:
+            pnl_str = "—"
+            pnl_style = "dim"
+        elif pnl >= 0:
+            pnl_str = f"+{pnl:.1f}"
+            pnl_style = "bright_green"
+        else:
+            pnl_str = f"{pnl:.1f}"
+            pnl_style = "red"
+
+        edge = t.get("edge_pct")
+        edge_str = f"+{edge:.1f}%" if edge and edge > 0 else (f"{edge:.1f}%" if edge is not None else "—")
+        edge_style = "green" if edge and edge >= 5 else ("yellow" if edge and edge > 0 else "red" if edge and edge < 0 else "dim")
+
+        match_str = f"{t['entity1']} v {t['entity2']}"
+        date_str = t["date"][:10] if t["date"] else t["timestamp"][:10]
+
+        table.add_row(
+            t["id"],
+            date_str,
+            match_str,
+            t["bet_label"],
+            Text(edge_str, style=edge_style),
+            str(t["stake"]),
+            str(t["odds"]) if t.get("odds") else "—",
+            Text(status_text, style=status_style),
+            Text(pnl_str, style=pnl_style),
+        )
+
+    console.print(table)
+
+    # Summary bar
+    pnl_color = "bright_green" if stats["total_pnl"] >= 0 else "red"
+    pnl_sign = "+" if stats["total_pnl"] >= 0 else ""
+    roi_sign = "+" if stats["roi"] >= 0 else ""
+
+    summary = Text()
+    summary.append(f"  {stats['total']} bets  ", style="dim white")
+    summary.append(f"({stats['pending']} pending)  ", style="dim yellow")
+    if stats["settled"]:
+        summary.append(f"Win rate: ", style="dim")
+        summary.append(f"{stats['win_rate']:.0f}%  ", style="bold white")
+        summary.append(f"P&L: ", style="dim")
+        summary.append(f"{pnl_sign}{stats['total_pnl']:.1f}  ", style=f"bold {pnl_color}")
+        summary.append(f"ROI: ", style="dim")
+        summary.append(f"{roi_sign}{stats['roi']:.1f}%", style=f"bold {pnl_color}")
+
+    console.print(Padding(summary, (0, 1)))
+    console.print()
+
+
+def prompt_log_trade(result) -> tuple:
+    """
+    Ask the user whether to log a trade. Returns (outcome_key, bet_label, stake, odds)
+    or None if they skip.
+    """
+    from rich.prompt import Prompt, Confirm
+    console.print()
+
+    if not Confirm.ask("[dim]  Log this as a trade?[/dim]", default=False):
+        return None
+
+    # Build outcome choices
+    outcomes = []
+    for key, prob in result.probabilities.items():
+        if prob is None:
+            continue
+        label = _outcome_label(key, result.entity1, result.entity2)
+        outcomes.append((key, label, prob))
+
+    console.print("  Which outcome are you betting on?")
+    for i, (key, label, prob) in enumerate(outcomes, 1):
+        star = " ★" if key == result.best_bet else ""
+        console.print(f"    [{i}] {label}  ({prob*100:.1f}%){star}", style="dim white")
+
+    while True:
+        choice = Prompt.ask("  Choice", default="1")
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(outcomes):
+                break
+        except ValueError:
+            pass
+        console.print("  Invalid choice.", style="red")
+
+    bet_outcome, bet_label, _ = outcomes[idx]
+
+    stake_str = Prompt.ask("  Stake (units)", default="10")
+    try:
+        stake = float(stake_str)
+    except ValueError:
+        stake = 10.0
+
+    odds_str = Prompt.ask("  Decimal odds (optional, Enter to skip)", default="")
+    try:
+        odds = float(odds_str) if odds_str else None
+    except ValueError:
+        odds = None
+
+    return bet_outcome, bet_label, stake, odds

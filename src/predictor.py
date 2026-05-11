@@ -1,4 +1,5 @@
 """Main orchestrator — routes parsed query to the correct sport handler."""
+from typing import Optional
 from src import parser as query_parser
 from src.sports.football import FootballPredictor
 from src.sports.tennis import TennisPredictor
@@ -7,6 +8,7 @@ from src.sports.boxing import BoxingPredictor
 from src.sports.cricket import CricketPredictor
 from src.sports.darts import DartsPredictor, BadmintonPredictor
 from src.display import terminal
+from src.sports.base import PredictionResult
 
 
 SPORT_HANDLERS = {
@@ -25,20 +27,23 @@ SPORT_HANDLERS = {
 
 def run(query: str) -> None:
     """Parse query and execute prediction pipeline."""
+    predict_query(query)
+
+
+def predict_query(query: str) -> Optional[PredictionResult]:
+    """Parse query, run prediction, render result. Returns PredictionResult or None."""
     parsed = query_parser.parse(query)
 
-    # Handle special commands
     if "command" in parsed:
         if parsed["command"] == "show_sports":
             terminal.render_sports_list()
-            return
-        if parsed["command"] == "help":
+        elif parsed["command"] == "help":
             _show_help()
-            return
+        return None
 
     if "error" in parsed:
         terminal.render_error(parsed["error"])
-        return
+        return None
 
     entity1 = parsed["entity1"]
     entity2 = parsed["entity2"]
@@ -53,16 +58,17 @@ def run(query: str) -> None:
     handler = SPORT_HANDLERS.get(sport)
     if not handler:
         terminal.render_error(f"Sport '{sport}' is not yet supported.")
-        return
+        return None
 
     terminal.console.print(f"\n[dim]Analyzing {entity1} vs {entity2} ({sport.title()})...[/dim]")
 
     try:
         result = handler.predict(entity1, entity2, date, context)
         terminal.render(result)
+        return result
     except Exception as e:
         terminal.render_error(f"Prediction failed: {e}")
-        raise
+        return None
 
 
 def _show_help():
