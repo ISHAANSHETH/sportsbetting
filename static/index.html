@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sports Betting Predictor</title>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #161b26;
+      --surface2: #1e2535;
+      --border: #2a3347;
+      --accent: #3b82f6;
+      --accent-glow: rgba(59,130,246,0.15);
+      --green: #22c55e;
+      --green-dim: rgba(34,197,94,0.12);
+      --yellow: #f59e0b;
+      --yellow-dim: rgba(245,158,11,0.12);
+      --red: #ef4444;
+      --red-dim: rgba(239,68,68,0.10);
+      --text: #e2e8f0;
+      --text-dim: #64748b;
+      --text-mid: #94a3b8;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface);
+    }
+    .logo {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+    .logo span { color: var(--accent); }
+    .badge {
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--accent-glow);
+      color: var(--accent);
+      border: 1px solid rgba(59,130,246,0.3);
+      border-radius: 4px;
+      padding: 2px 8px;
+      letter-spacing: 0.5px;
+    }
+    .header-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .gh-link {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-mid);
+      text-decoration: none;
+      font-size: 13px;
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      transition: all 0.15s;
+    }
+    .gh-link:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Main layout ── */
+    main {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 40px 20px 80px;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+    .hero h1 {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.8px;
+      margin-bottom: 10px;
+    }
+    .hero h1 span { color: var(--accent); }
+    .hero p {
+      color: var(--text-mid);
+      font-size: 15px;
+      line-height: 1.6;
+      max-width: 520px;
+      margin: 0 auto 24px;
+    }
+
+    /* ── Search bar ── */
+    .search-wrap {
+      display: flex;
+      gap: 10px;
+      max-width: 620px;
+      margin: 0 auto;
+    }
+    .search-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: 15px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .search-input::placeholder { color: var(--text-dim); }
+    .search-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .search-btn {
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 14px 22px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      white-space: nowrap;
+    }
+    .search-btn:hover { opacity: 0.9; }
+    .search-btn:active { transform: scale(0.98); }
+    .search-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Examples ── */
+    .examples {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: center;
+    }
+    .example-chip {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 12px;
+      color: var(--text-mid);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .example-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Loading ── */
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 48px;
+      color: var(--text-dim);
+    }
+    .loading.active { display: block; }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Result card ── */
+    .result { display: none; }
+    .result.active { display: block; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+
+    .match-header {
+      padding: 20px 24px 16px;
+      background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .match-sport {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .match-title {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 4px;
+    }
+    .match-vs { color: var(--text-dim); font-weight: 400; }
+    .match-meta {
+      font-size: 13px;
+      color: var(--text-mid);
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .match-meta span { display: flex; align-items: center; gap: 4px; }
+
+    /* ── Outcomes ── */
+    .outcomes { padding: 20px 24px; }
+    .outcome-row {
+      display: grid;
+      grid-template-columns: 140px 1fr 70px 70px 90px;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .outcome-row:last-child { border-bottom: none; }
+    .outcome-row.best {
+      background: rgba(59,130,246,0.04);
+      border-radius: 8px;
+      margin: 2px -8px;
+      padding: 10px 8px;
+    }
+
+    .outcome-label {
+      font-size: 14px;
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .best .outcome-label { color: var(--accent); font-weight: 600; }
+    .best-star { color: var(--accent); margin-right: 4px; }
+
+    .bar-wrap {
+      position: relative;
+      height: 8px;
+      background: var(--surface2);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      position: absolute;
+      left: 0; top: 0; height: 100%;
+      background: var(--border);
+      border-radius: 4px;
+      transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+    }
+    .bar-fill.accent { background: var(--accent); }
+    .bar-fill.green { background: var(--green); }
+    .bar-fill.yellow { background: var(--yellow); }
+
+    .pct {
+      font-size: 15px;
+      font-weight: 600;
+      text-align: right;
+    }
+    .pct-dim {
+      font-size: 13px;
+      color: var(--text-dim);
+      text-align: right;
+    }
+    .edge-badge {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 5px;
+      text-align: center;
+    }
+    .edge-strong { background: var(--green-dim); color: var(--green); }
+    .edge-moderate { background: var(--yellow-dim); color: var(--yellow); }
+    .edge-weak { color: var(--text-dim); }
+    .edge-negative { color: var(--red); }
+    .edge-na { color: var(--text-dim); font-size: 12px; }
+
+    .outcome-header {
+      display: grid;
+      grid-template-columns: 140px 1fr 70px 70px 90px;
+      gap: 12px;
+      padding: 0 0 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    /* ── Recommendation box ── */
+    .rec-card {
+      padding: 20px 24px;
+      border-top: 1px solid var(--border);
+    }
+    .rec-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .rec-label.has-bet { color: var(--green); }
+    .rec-label.no-bet { color: var(--text-dim); }
+    .rec-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .rec-stat {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+    }
+    .rec-stat-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+    .rec-stat-value {
+      font-size: 20px;
+      font-weight: 700;
+    }
+    .rec-stat-value.green { color: var(--green); }
+    .rec-stat-value.yellow { color: var(--yellow); }
+    .rec-stat-value.dim { color: var(--text-mid); }
+
+    /* ── Factors ── */
+    .factors-card { padding: 18px 24px; border-top: 1px solid var(--border); }
+    .factors-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+    }
+    .factor-item {
+      font-size: 13px;
+      color: var(--text-mid);
+      padding: 4px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .factor-item::before { content: "·"; color: var(--accent); flex-shrink: 0; }
+    .factor-news {
+      color: var(--yellow);
+    }
+    .factor-news::before { content: "⚠"; font-size: 11px; }
+
+    /* ── Model breakdown ── */
+    .breakdown { padding: 14px 24px 18px; border-top: 1px solid var(--border); }
+    .breakdown-inner {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .breakdown-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-right: 4px;
+    }
+    .model-chip {
+      font-size: 12px;
+      color: var(--text-mid);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px 8px;
+    }
+    .sources {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    /* ── Sports grid ── */
+    .sports-section { margin-top: 52px; }
+    .sports-section h2 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-mid);
+      margin-bottom: 16px;
+      letter-spacing: -0.3px;
+    }
+    .sports-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 10px;
+    }
+    .sport-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .sport-card:hover { border-color: var(--accent); }
+    .sport-card-emoji { font-size: 22px; margin-bottom: 6px; }
+    .sport-card-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+    .sport-card-acc { font-size: 12px; color: var(--green); font-weight: 600; }
+    .sport-card-tip { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+    /* ── Error ── */
+    .error-card {
+      display: none;
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.25);
+      border-radius: 10px;
+      padding: 16px 20px;
+      color: var(--red);
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+    .error-card.active { display: block; }
+
+    @media (max-width: 600px) {
+      .outcome-row, .outcome-header {
+        grid-template-columns: 110px 1fr 55px 55px 70px;
+        font-size: 13px;
+        gap: 8px;
+      }
+      .rec-grid { grid-template-columns: 1fr 1fr; }
+      .match-title { font-size: 18px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Edge<span>Finder</span></div>
+  <div class="badge">BETA</div>
+  <div class="header-right">
+    <a class="gh-link" href="https://github.com/govindgoel2001/sportsbetting" target="_blank">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+      </svg>
+      GitHub
+    </a>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <h1>True <span>Probabilities</span>.<br>Real Edge.</h1>
+    <p>Multi-model sports prediction using Dixon-Coles, surface ELO, and live stats. Compare against Polymarket &amp; Kalshi to find value bets.</p>
+
+    <div class="search-wrap">
+      <input
+        class="search-input"
+        id="queryInput"
+        type="text"
+        placeholder='e.g. "Portugal vs Spain Nations League" or "Djokovic vs Alcaraz Wimbledon"'
+        autocomplete="off"
+      />
+      <button class="search-btn" id="predictBtn" onclick="runPredict()">Predict</button>
+    </div>
+
+    <div class="examples" id="examplesRow"></div>
+  </div>
+
+  <div class="error-card" id="errorCard"></div>
+
+  <div class="loading" id="loadingState">
+    <div class="spinner"></div>
+    <div>Fetching data &amp; running models…</div>
+  </div>
+
+  <div class="result" id="resultCard">
+    <!-- filled by JS -->
+  </div>
+
+  <div class="sports-section" id="sportsSection">
+    <h2>Supported sports</h2>
+    <div class="sports-grid" id="sportsGrid"></div>
+  </div>
+</main>
+
+<script>
+  let sportsData = [];
+
+  async function loadMeta() {
+    try {
+      const r = await fetch('/api/sports');
+      const data = await r.json();
+      sportsData = data.sports;
+      renderSports(data.sports);
+      renderExamples(data.examples);
+    } catch(e) {}
+  }
+
+  function renderExamples(examples) {
+    const row = document.getElementById('examplesRow');
+    row.innerHTML = examples.map(ex =>
+      `<span class="example-chip" onclick="setQuery('${ex}')">${ex}</span>`
+    ).join('');
+  }
+
+  function renderSports(sports) {
+    const grid = document.getElementById('sportsGrid');
+    grid.innerHTML = sports.map(s =>
+      `<div class="sport-card" onclick="setQuery('${sportExample(s.sport)}')">
+        <div class="sport-card-emoji">${s.emoji}</div>
+        <div class="sport-card-name">${s.sport}</div>
+        <div class="sport-card-acc">${s.accuracy} accuracy</div>
+        <div class="sport-card-tip">${s.tip}</div>
+      </div>`
+    ).join('');
+  }
+
+  function sportExample(sport) {
+    const map = {
+      'Football / Soccer': 'Portugal vs Spain Nations League',
+      'Tennis': 'Djokovic vs Alcaraz Wimbledon',
+      'UFC / MMA': 'Jon Jones vs Stipe Miocic UFC',
+      'Boxing': 'Tyson Fury vs Oleksandr Usyk boxing',
+      'Cricket': 'India vs Australia T20 World Cup',
+      'Darts': 'Michael van Gerwen vs Luke Humphries PDC',
+      'Badminton': 'Viktor Axelsen vs Shi Yuqi badminton',
+      'Table Tennis': 'Fan Zhendong vs Ma Long table tennis',
+    };
+    return map[sport] || sport;
+  }
+
+  function setQuery(q) {
+    document.getElementById('queryInput').value = q;
+    runPredict();
+  }
+
+  document.getElementById('queryInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') runPredict();
+  });
+
+  async function runPredict() {
+    const query = document.getElementById('queryInput').value.trim();
+    if (!query) return;
+
+    setLoading(true);
+    clearError();
+    hideResult();
+
+    try {
+      const r = await fetch('/api/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        showError(data.detail || 'Prediction failed.');
+        return;
+      }
+      renderResult(data);
+    } catch(e) {
+      showError('Network error — is the server running?');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function renderResult(d) {
+    const card = document.getElementById('resultCard');
+    const sportEmoji = emojiForSport(d.sport);
+
+    const meta = [
+      d.competition && `<span>🏆 ${d.competition}</span>`,
+      d.date && `<span>📅 ${d.date}</span>`,
+      d.venue && d.venue !== 'Unknown' && `<span>📍 ${d.venue}</span>`,
+    ].filter(Boolean).join('');
+
+    const outcomeRows = d.outcomes.map(o => {
+      const barColor = o.is_best_bet ? 'green' : (o.model_prob > 45 ? 'accent' : '');
+      const edgeHtml = renderEdge(o);
+      const label = o.is_best_bet
+        ? `<span class="best-star">★</span>${escHtml(o.label)}`
+        : escHtml(o.label);
+      return `
+        <div class="outcome-row ${o.is_best_bet ? 'best' : ''}">
+          <div class="outcome-label">${label}</div>
+          <div class="bar-wrap">
+            <div class="bar-fill ${barColor}" style="width:${o.model_prob}%"></div>
+          </div>
+          <div class="pct">${o.model_prob}%</div>
+          <div class="pct-dim">${o.market_prob != null ? o.market_prob + '%' : '—'}</div>
+          ${edgeHtml}
+        </div>`;
+    }).join('');
+
+    const recHtml = renderRec(d);
+    const factorsHtml = renderFactors(d);
+    const breakdownHtml = renderBreakdown(d);
+
+    card.innerHTML = `
+      <div class="card">
+        <div class="match-header">
+          <div class="match-sport">${sportEmoji} ${escHtml(d.sport)}</div>
+          <div class="match-title">
+            ${escHtml(d.entity1)} <span class="match-vs">vs</span> ${escHtml(d.entity2)}
+          </div>
+          <div class="match-meta">${meta}</div>
+        </div>
+
+        <div class="outcomes">
+          <div class="outcome-header">
+            <div>Outcome</div>
+            <div>Probability</div>
+            <div style="text-align:right">Model</div>
+            <div style="text-align:right">Market</div>
+            <div style="text-align:center">Edge</div>
+          </div>
+          ${outcomeRows}
+        </div>
+
+        ${recHtml}
+        ${factorsHtml}
+        ${breakdownHtml}
+      </div>`;
+
+    document.getElementById('resultCard').classList.add('active');
+    document.getElementById('sportsSection').style.display = 'none';
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function renderEdge(o) {
+    if (o.edge_pct == null) {
+      return `<div class="edge-badge edge-na">No market</div>`;
+    }
+    const sign = o.edge_pct > 0 ? '+' : '';
+    const cls = o.edge_rating === 'STRONG' ? 'edge-strong'
+               : o.edge_rating === 'MODERATE' ? 'edge-moderate'
+               : o.edge_rating === 'NEGATIVE' ? 'edge-negative'
+               : 'edge-weak';
+    return `<div class="edge-badge ${cls}">${sign}${o.edge_pct.toFixed(1)}%</div>`;
+  }
+
+  function renderRec(d) {
+    if (!d.best_bet || d.best_edge_pct <= 0) {
+      return `<div class="rec-card">
+        <div class="rec-label no-bet">Recommendation</div>
+        <div style="color:var(--text-dim);font-size:14px">No clear edge detected vs market odds — pass on this one.</div>
+      </div>`;
+    }
+    const edgeColor = d.best_edge_pct >= 5 ? 'green' : 'yellow';
+    const edgeRating = d.best_edge_pct >= 5 ? 'STRONG VALUE' : d.best_edge_pct >= 2 ? 'MODERATE VALUE' : 'WEAK';
+    return `<div class="rec-card">
+      <div class="rec-label has-bet">★ Recommended Bet</div>
+      <div class="rec-grid">
+        <div class="rec-stat">
+          <div class="rec-stat-label">Best Bet</div>
+          <div class="rec-stat-value dim" style="font-size:16px">${escHtml(d.best_bet_label || d.best_bet)}</div>
+        </div>
+        <div class="rec-stat">
+          <div class="rec-stat-label">Edge vs Market</div>
+          <div class="rec-stat-value ${edgeColor}">+${d.best_edge_pct.toFixed(1)}%</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:2px">${edgeRating}</div>
+        </div>
+        <div class="rec-stat">
+          <div class="rec-stat-label">Kelly Stake</div>
+          <div class="rec-stat-value ${edgeColor}">${d.kelly_stake_pct.toFixed(1)}%</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:2px">of bankroll</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function renderFactors(d) {
+    const items = [
+      ...(d.key_factors || []).map(f => `<div class="factor-item">${escHtml(f)}</div>`),
+      ...(d.news_flags || []).map(f => `<div class="factor-item factor-news">${escHtml(f)}</div>`),
+    ];
+    if (!items.length) return '';
+    return `<div class="factors-card">
+      <div class="factors-title">Key Factors</div>
+      ${items.join('')}
+    </div>`;
+  }
+
+  function renderBreakdown(d) {
+    const chips = Object.entries(d.model_breakdown || {})
+      .filter(([,v]) => v && Object.keys(v).length)
+      .map(([name, probs]) => {
+        const val = Object.values(probs)[0];
+        return `<span class="model-chip">${escHtml(name)}: ${val != null ? val.toFixed(1)+'%' : '—'}</span>`;
+      });
+    const sources = (d.data_sources || []).join(' · ');
+    return `<div class="breakdown">
+      <div class="breakdown-inner">
+        <span class="breakdown-label">Models</span>
+        ${chips.join('')}
+      </div>
+      <div style="margin-top:8px">
+        <span class="breakdown-label">Data</span>
+        <span class="sources">${escHtml(sources)}</span>
+      </div>
+    </div>`;
+  }
+
+  function emojiForSport(s) {
+    const map = { Football:'⚽', Tennis:'🎾', 'UFC/MMA':'🥊', Boxing:'🥊', Cricket:'🏏', Darts:'🎯', Badminton:'🏸', 'Table Tennis':'🏓' };
+    return map[s] || '🏆';
+  }
+
+  function setLoading(on) {
+    document.getElementById('loadingState').classList.toggle('active', on);
+    document.getElementById('predictBtn').disabled = on;
+    document.getElementById('predictBtn').textContent = on ? 'Analyzing…' : 'Predict';
+  }
+  function clearError() { const e = document.getElementById('errorCard'); e.textContent=''; e.classList.remove('active'); }
+  function showError(msg) { const e = document.getElementById('errorCard'); e.textContent=msg; e.classList.add('active'); }
+  function hideResult() {
+    document.getElementById('resultCard').classList.remove('active');
+    document.getElementById('resultCard').innerHTML = '';
+    document.getElementById('sportsSection').style.display = '';
+  }
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  loadMeta();
+</script>
+</body>
+</html>

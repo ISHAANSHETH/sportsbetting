@@ -1,0 +1,139 @@
+# EdgeFinder — Sports Betting Predictor
+
+Multi-model sports prediction tool that generates true probabilities and calculates your edge over Polymarket and Kalshi.
+
+**Zero API keys required.** All data from public sources.
+
+---
+
+## Sports supported
+
+| Sport | Accuracy target | Key data source |
+|-------|----------------|-----------------|
+| ⚽ Football / Soccer | ~63% | FBRef, Understat (xG), ESPN |
+| 🎾 Tennis | ~68% | Jeff Sackmann ATP/WTA dataset |
+| 🥊 UFC / MMA | ~63% | UFCStats.com (official) |
+| 🥊 Boxing | ~62% | Seeded ELO + BoxRec |
+| 🏏 Cricket | ~66% | CricSheet ball-by-ball data |
+| 🎯 Darts | ~67% | PDC world rankings |
+| 🏸 Badminton | ~64% | BWF world rankings |
+| 🏓 Table Tennis | ~64% | ITTF rankings |
+
+---
+
+## How it works
+
+1. **Data** — scrapes public sources (no signup): FBRef, Understat, ESPN unofficial API, Jeff Sackmann's GitHub CSV archives, UFCStats.com, CricSheet.org, Google News RSS
+2. **Models** — Dixon-Coles Poisson (football/cricket) + surface-adjusted ELO (tennis) + striking/grappling stats model (UFC) + Random Forest / XGBoost ensemble
+3. **Market comparison** — fetches live odds from Polymarket and Kalshi (public APIs, no auth), removes vig, calculates edge per outcome
+4. **Stake sizing** — quarter-Kelly criterion for safe bankroll management
+
+---
+
+## Quick start
+
+```bash
+git clone https://github.com/govindgoel2001/sportsbetting
+cd sportsbetting
+pip install -r requirements.txt
+```
+
+### Web app (recommended — share with anyone)
+
+```bash
+python app.py
+# Open http://localhost:8000
+```
+
+### CLI
+
+```bash
+python main.py "Portugal vs Spain Nations League"
+python main.py "Djokovic vs Alcaraz Wimbledon tomorrow"
+python main.py "Jon Jones vs Stipe Miocic UFC"
+python main.py "India vs Australia T20 World Cup"
+python main.py show sports
+```
+
+---
+
+## Example output
+
+```
+⚽  Portugal  vs  Spain  —  Nations League  •  2026-05-12
+
+  Outcome       Probability          Model    Market    Edge
+  ─────────────────────────────────────────────────────────
+  ★ Portugal    ████████░░░░░░░░░░   41.1%    32.2%    +8.9%  STRONG
+    Draw        ██████░░░░░░░░░░░░   28.6%    25.4%    +3.2%
+    Spain       ██████░░░░░░░░░░░░   30.3%    42.4%    -12.1%
+
+  Best Bet: Portugal Win
+  Edge: +8.9%  [STRONG VALUE]
+  Kelly Stake: 5.2% of bankroll
+```
+
+---
+
+## Edge calculation
+
+```
+edge = model_probability − devigged_market_probability
+
+Thresholds:
+  STRONG   > 5%   — high confidence value bet
+  MODERATE 2–5%   — moderate value
+  WEAK     0–2%   — minimal edge, skip
+  NEGATIVE < 0%   — market knows more, avoid
+```
+
+---
+
+## Accuracy targets
+
+The 65%+ accuracy comes from four sources of alpha:
+
+1. **Dixon-Coles xG correction** — expected goals are more predictive than actual goals; corrects for lucky/unlucky scorelines
+2. **Surface-adjusted ELO** (tennis) — Djokovic's grass ELO is very different from his clay ELO; most markets use flat ratings
+3. **Injury/news timing** — model reads Google News RSS; Polymarket markets often take 24–48h to reprice on new injury news
+4. **Statistical differentials** (UFC) — UFCStats strike accuracy × defense vs opponent patterns are underweighted by casual bettors
+
+---
+
+## No API keys needed
+
+All data sources are public:
+
+| Source | What it provides |
+|--------|-----------------|
+| [FBRef.com](https://fbref.com) | Football team stats, xG, form |
+| [Understat.com](https://understat.com) | Expected goals per match |
+| [ESPN unofficial API](https://site.api.espn.com) | Fixtures, standings, scores |
+| [Jeff Sackmann's GitHub](https://github.com/JeffSackmann/tennis_atp) | Complete ATP/WTA match history |
+| [UFCStats.com](http://ufcstats.com) | Official UFC fighter statistics |
+| [CricSheet.org](https://cricsheet.org) | Ball-by-ball cricket data |
+| [Polymarket CLOB API](https://clob.polymarket.com) | Prediction market odds |
+| [Kalshi API](https://trading-api.kalshi.com) | Prediction market odds |
+| Google News RSS | Team/player news for sentiment |
+
+---
+
+## Optional: API keys for higher rate limits
+
+Create a `.env` file (copy from `.env.example`):
+
+```env
+# api-sports.io — free 100 req/day, unlocks deeper injury data
+API_FOOTBALL_KEY=your_key_here
+
+# the-odds-api.com — free 500 req/month, unlocks sportsbook lines
+ODDS_API_KEY=your_key_here
+```
+
+The tool works fully without these.
+
+---
+
+## Disclaimer
+
+For educational and research purposes. Past prediction accuracy does not guarantee future results. Bet responsibly.
