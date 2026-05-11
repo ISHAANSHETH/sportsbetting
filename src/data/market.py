@@ -1,0 +1,146 @@
+"""Fetch market odds from Polymarket and Kalshi (no API key required)."""
+import requests
+import re
+from typing import Optional
+from src.data import cache
+
+POLYMARKET_API = "https://clob.polymarket.com/markets"
+KALSHI_API = "https://trading-api.kalshi.com/trade-api/v2/events"
+
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (compatible; SportsBettingPredictor/1.0)",
+    "Accept": "application/json",
+}
+
+
+def _search_polymarket(query: str) -> Optional[dict]:
+    """Search Polymarket for a sports market matching query."""
+    cached = cache.get("polymarket", {"q": query})
+    if cached:
+        return cached
+
+    try:
+        params = {"limit": 20, "active": "true"}
+        resp = requests.get(POLYMARKET_API, params=params, headers=HEADERS, timeout=10)
+        if resp.status_code != 200:
+            return None
+
+        data = resp.json()
+        markets = data.get("data", []) if isinstance(data, dict) else data
+
+        query_words = set(query.lower().split())
+        best = None
+        best_score = 0
+
+        for mkt in markets:
+            q = mkt.get("question", "").lower()
+            overlap = len(query_words & set(q.split()))
+            if overlap > best_score:
+                best_score = overlap
+                best = mkt
+
+        if best and best_score >= 2:
+            tokens = best.get("tokens", [])
+            probs = {}
+            for tok in tokens:
+                outcome = tok.get("outcome", "").lower()
+                price = float(tok.get("price", 0))
+                probs[outcome] = price
+
+            result = {"source": "polymarket", "market": best.get("question"), "probs": probs}
+            cache.set("polymarket", {"q": query}, result, ttl_seconds=1800)
+            return result
+    except Exception:
+        pass
+    return None
+
+
+def _search_kalshi(query: str) -> Optional[dict]:
+    """Search Kalshi for a sports event."""
+    cached = cache.get("kalshi", {"q": query})
+    if cached:
+        return cached
+
+    try:
+        params = {"limit": 20, "status": "open"}
+        resp = requests.get(KALSHI_API, params=params, headers=HEADERS, timeout=10)
+        if resp.status_code != 200:
+            return None
+
+        events = resp.json().get("events", [])
+        query_words = set(query.lower().split())
+
+        for event in events:
+            title = event.get("title", "").lower()
+            overlap = len(query_words & set(title.split()))
+            if overlap >= 2:
+                markets = event.get("markets", [])
+                probs = {}
+                for mkt in markets:
+                    yes_price = mkt.get("yes_ask", 0) / 100
+                    no_price = 1 - yes_price
+                    subtitle = mkt.get("subtitle", mkt.get("title", ""))
+                    probs[subtitle.lower()] = yes_price
+
+                result = {"source": "kalshi", "market": event.get("title"), "probs": probs}
+                cache.set("kalshi", {"q": query}, result, ttl_seconds=1800)
+                return result
+    except Exception:
+        pass
+    return None
+
+
+def get_market_odds(team1: str, team2: str, sport: str = "") -> dict:
+    """
+    Fetch implied probabilities from prediction markets.
+    Returns {home_win: float, draw: float, away_win: float} (normalized, vig removed).
+    Falls back to None if no market found.
+    """
+    query = f"{team1} {team2}".strip()
+
+    pm = _search_polymarket(query)
+    if pm:
+        return _normalize_football_probs(pm["probs"], team1, team2)
+
+    ka = _search_kalshi(query)
+    if ka:
+        return _normalize_football_probs(ka["probs"], team1, team2)
+
+    return None
+
+
+def _normalize_football_probs(probs: dict, team1: str, team2: str) -> dict:
+    """Map raw market probs to home/draw/away structure and remove vig."""
+    t1 = team1.lower().split()[0]
+    t2 = team2.lower().split()[0]
+
+    home_p = draw_p = away_p = None
+    for k, v in probs.items():
+        if t1 in k:
+            home_p = v
+        elif t2 in k:
+            away_p = v
+        elif "draw" in k or "tie" in k:
+            draw_p = v
+
+    if home_p is None and away_p is None:
+        vals = list(probs.values())
+        if len(vals) >= 2:
+            home_p, away_p = vals[0], vals[1]
+            draw_p = vals[2] if len(vals) > 2 else None
+
+    if home_p is None:
+        return None
+
+    if draw_p is None:
+        total = home_p + away_p
+        home_p /= total
+        away_p /= total
+        return {"home_win": round(home_p, 4), "draw": None, "away_win": round(away_p, 4)}
+
+    total = home_p + (draw_p or 0) + away_p
+    return {
+        "home_win": round(home_p / total, 4),
+        "draw": round(draw_p / total, 4),
+        "away_win": round(away_p / total, 4),
+    }

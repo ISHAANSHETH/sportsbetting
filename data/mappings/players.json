@@ -1,0 +1,48 @@
+{
+  "tennis": {
+    "djokovic": {"name": "Novak Djokovic", "country": "SRB", "hand": "R", "elo": 2340},
+    "novak djokovic": {"name": "Novak Djokovic", "country": "SRB", "hand": "R", "elo": 2340},
+    "alcaraz": {"name": "Carlos Alcaraz", "country": "ESP", "hand": "R", "elo": 2210},
+    "carlos alcaraz": {"name": "Carlos Alcaraz", "country": "ESP", "hand": "R", "elo": 2210},
+    "sinner": {"name": "Jannik Sinner", "country": "ITA", "hand": "R", "elo": 2230},
+    "jannik sinner": {"name": "Jannik Sinner", "country": "ITA", "hand": "R", "elo": 2230},
+    "medvedev": {"name": "Daniil Medvedev", "country": "RUS", "hand": "R", "elo": 2150},
+    "zverev": {"name": "Alexander Zverev", "country": "GER", "hand": "R", "elo": 2140},
+    "federer": {"name": "Roger Federer", "country": "SUI", "hand": "R", "elo": 2400},
+    "nadal": {"name": "Rafael Nadal", "country": "ESP", "hand": "L", "elo": 2350},
+    "swiatek": {"name": "Iga Swiatek", "country": "POL", "hand": "R", "elo": 2260},
+    "iga swiatek": {"name": "Iga Swiatek", "country": "POL", "hand": "R", "elo": 2260},
+    "sabalenka": {"name": "Aryna Sabalenka", "country": "BLR", "hand": "R", "elo": 2190},
+    "gauff": {"name": "Coco Gauff", "country": "USA", "hand": "R", "elo": 2080},
+    "rybakina": {"name": "Elena Rybakina", "country": "KAZ", "hand": "R", "elo": 2120}
+  },
+  "ufc": {
+    "jon jones": {"name": "Jon Jones", "weight": "Heavyweight", "elo": 1850},
+    "jones": {"name": "Jon Jones", "weight": "Heavyweight", "elo": 1850},
+    "ngannou": {"name": "Francis Ngannou", "weight": "Heavyweight", "elo": 1720},
+    "francis ngannou": {"name": "Francis Ngannou", "weight": "Heavyweight", "elo": 1720},
+    "stipe": {"name": "Stipe Miocic", "weight": "Heavyweight", "elo": 1760},
+    "stipe miocic": {"name": "Stipe Miocic", "weight": "Heavyweight", "elo": 1760},
+    "adesanya": {"name": "Israel Adesanya", "weight": "Middleweight", "elo": 1790},
+    "israel adesanya": {"name": "Israel Adesanya", "weight": "Middleweight", "elo": 1790},
+    "mcgregor": {"name": "Conor McGregor", "weight": "Lightweight", "elo": 1680},
+    "conor mcgregor": {"name": "Conor McGregor", "weight": "Lightweight", "elo": 1680},
+    "makhachev": {"name": "Islam Makhachev", "weight": "Lightweight", "elo": 1830},
+    "islam makhachev": {"name": "Islam Makhachev", "weight": "Lightweight", "elo": 1830},
+    "volkanovski": {"name": "Alexander Volkanovski", "weight": "Featherweight", "elo": 1800},
+    "pereira": {"name": "Alex Pereira", "weight": "Light Heavyweight", "elo": 1810},
+    "alex pereira": {"name": "Alex Pereira", "weight": "Light Heavyweight", "elo": 1810}
+  },
+  "boxing": {
+    "fury": {"name": "Tyson Fury", "weight": "Heavyweight", "elo": 1900},
+    "tyson fury": {"name": "Tyson Fury", "weight": "Heavyweight", "elo": 1900},
+    "usyk": {"name": "Oleksandr Usyk", "weight": "Heavyweight", "elo": 1920},
+    "oleksandr usyk": {"name": "Oleksandr Usyk", "weight": "Heavyweight", "elo": 1920},
+    "joshua": {"name": "Anthony Joshua", "weight": "Heavyweight", "elo": 1790},
+    "anthony joshua": {"name": "Anthony Joshua", "weight": "Heavyweight", "elo": 1790},
+    "canelo": {"name": "Canelo Alvarez", "weight": "Super Middleweight", "elo": 1880},
+    "canelo alvarez": {"name": "Canelo Alvarez", "weight": "Super Middleweight", "elo": 1880},
+    "crawford": {"name": "Terence Crawford", "weight": "Welterweight", "elo": 1870},
+    "terence crawford": {"name": "Terence Crawford", "weight": "Welterweight", "elo": 1870}
+  }
+}
