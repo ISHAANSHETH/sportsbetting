@@ -162,6 +162,21 @@ def _normalize_prop_probs(probs: dict, bet_type: str, prop_params: dict,
 
 
 def get_market_odds(team1: str, team2: str, sport: str = "") -> dict:
+    # NEW: try Pinnacle first (sharpest market, no vig problem)
+    try:
+        from src.data.scrapers.odds_extra import get_pinnacle_odds
+        pinnacle = get_pinnacle_odds(team1, team2, sport or "football")
+        if pinnacle:
+            return _normalize_football_probs(
+                {
+                    team1.lower().split()[0]: pinnacle.get("home_win", 0),
+                    "draw": pinnacle.get("draw"),
+                    team2.lower().split()[0]: pinnacle.get("away_win", 0),
+                },
+                team1, team2,
+            ) or pinnacle
+    except Exception:
+        pass
     """
     Fetch implied probabilities from prediction markets.
     Returns {home_win: float, draw: float, away_win: float} (normalized, vig removed).

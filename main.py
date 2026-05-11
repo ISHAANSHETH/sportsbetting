@@ -35,6 +35,8 @@ def _banner():
             ("  ·  Sports Betting Predictor\n\n", "dim white"),
             ("  Commands:\n", "bold dim"),
             ("    <match query>  ", "white"), ("— predict (e.g. Portugal vs Spain)\n", "dim"),
+            ("    data <name>    ", "white"), ("— show raw data for a team/player before betting\n", "dim"),
+            ("    today          ", "white"), ("— list today's & upcoming fixtures\n", "dim"),
             ("    trades         ", "white"), ("— view your bet history & P&L\n", "dim"),
             ("    settle <id>    ", "white"), ("— mark a trade won/lost (e.g. settle a3f9)\n", "dim"),
             ("    sports         ", "white"), ("— list all supported sports\n", "dim"),
@@ -75,6 +77,111 @@ def _show_trades():
     all_trades = trade_log.load()
     s = trade_log.stats(all_trades)
     terminal.render_trades(all_trades, s)
+
+
+def _inspect(name: str):
+    """Show all raw data for a team/player/fighter."""
+    from src.inspect import (
+        inspect_football_team, inspect_fighter,
+        inspect_tennis_player, inspect_player,
+    )
+    from src.parser import parse
+
+    # Use the parser to figure out what kind of entity this is
+    result = parse(name)
+    sport = result.get("sport", "football")
+
+    if sport == "ufc":
+        inspect_fighter(name)
+    elif sport == "tennis":
+        inspect_tennis_player(name)
+    elif sport == "football":
+        # Check if it looks like a player name vs a team name
+        # Heuristic: if it has more than one word and looks like a person, try player first
+        words = name.strip().split()
+        looks_like_player = (
+            len(words) >= 2
+            and not any(c.isdigit() for c in name)
+            and not any(kw in name.lower() for kw in ("fc", "united", "city", "athletic", "real", "club"))
+        )
+        if looks_like_player:
+            inspect_player(name)
+        else:
+            inspect_football_team(name)
+    else:
+        inspect_football_team(name)
+
+
+def _show_fixtures(days_ahead: int = 3):
+    """Display upcoming fixtures across all major sports."""
+    from src.data.scrapers.fixtures import get_todays_fixtures
+    from rich.table import Table
+    from rich import box
+    from datetime import datetime, timezone
+
+    console.print("\n[dim]Fetching upcoming fixtures...[/dim]")
+    fixtures = get_todays_fixtures(days_ahead=days_ahead)
+
+    if not fixtures:
+        console.print("[yellow]  No fixtures found.[/yellow]")
+        return
+
+    table = Table(
+        box=box.SIMPLE,
+        show_header=True,
+        header_style="bold dim",
+        padding=(0, 1),
+        show_edge=False,
+    )
+    table.add_column("Date", style="dim", width=12)
+    table.add_column("League", style="dim", width=22)
+    table.add_column("Home", style="white", width=22)
+    table.add_column("Away", style="white", width=22)
+    table.add_column("Status", style="dim", width=14)
+
+    for f in fixtures[:60]:
+        # Parse date
+        raw_date = f.get("date", "")
+        try:
+            dt = datetime.fromisoformat(raw_date.replace("Z", "+00:00"))
+            date_str = dt.strftime("%a %d %b")
+        except Exception:
+            date_str = raw_date[:10]
+
+        status = f.get("status", "")
+        home_score = f.get("home_score", "")
+        away_score = f.get("away_score", "")
+
+        if status in ("Final", "In Progress", "Halftime") and home_score != "":
+            score_str = f"{home_score} - {away_score}"
+            if status == "Final":
+                status_display = "[dim]FT[/dim]"
+            elif status == "Halftime":
+                status_display = "[yellow]HT[/yellow]"
+            else:
+                clock = f.get("clock", "")
+                status_display = f"[bright_green]{clock}[/bright_green]"
+        else:
+            score_str = "vs"
+            status_display = "[dim]Upcoming[/dim]"
+
+        table.add_row(
+            date_str,
+            f.get("league", ""),
+            f.get("home", ""),
+            f.get("away", ""),
+            status_display,
+        )
+
+    console.print(
+        Panel(
+            table,
+            title="[bold white]  Upcoming Fixtures[/bold white]",
+            border_style="bright_blue",
+            padding=(0, 1),
+        )
+    )
+    console.print(f"[dim]  {len(fixtures)} fixtures found  ·  type a match name to predict it[/dim]\n")
 
 
 def _settle(args: str):
@@ -136,6 +243,27 @@ def _dispatch(line: str) -> bool:
         terminal.render_sports_list()
         return True
 
+    if low in ("today", "fixtures", "schedule", "games"):
+        _show_fixtures(days_ahead=3)
+        return True
+
+    if low.startswith("today "):
+        # e.g. "today 7" for 7 days ahead
+        try:
+            days = int(cmd.split()[1])
+        except (IndexError, ValueError):
+            days = 3
+        _show_fixtures(days_ahead=days)
+        return True
+
+    if low.startswith("data ") or low.startswith("inspect "):
+        name = cmd.split(" ", 1)[1].strip()
+        if name:
+            _inspect(name)
+        else:
+            console.print("  Usage: data <team or player name>", style="dim red")
+        return True
+
     if low in ("help", "h", "?"):
         _banner()
         return True
@@ -170,6 +298,11 @@ def main():
         elif low in ("sports", "show sports"):
             from src.display import terminal
             terminal.render_sports_list()
+        elif low in ("today", "fixtures", "schedule"):
+            _show_fixtures(days_ahead=3)
+        elif low.startswith("data ") or low.startswith("inspect "):
+            name = query.split(" ", 1)[1].strip()
+            _inspect(name)
         else:
             from src.predictor import predict_query
             predict_query(query)
