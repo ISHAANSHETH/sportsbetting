@@ -36,14 +36,55 @@ def _prob_bar(prob: float, width: int = 20) -> str:
     return "█" * filled + "░" * empty
 
 
-def _outcome_label(key: str, entity1: str, entity2: str) -> str:
+def _outcome_label(key: str, entity1: str, entity2: str, player: str = "") -> str:
     if key in ("home_win", "p1_win", "f1_win"):
         return entity1
     if key in ("away_win", "p2_win", "f2_win"):
         return entity2
     if key == "draw":
         return "Draw"
-    return key.replace("_", " ").title()
+    # Prop-specific friendly names
+    _PROP_LABELS = {
+        "over": "Over",
+        "under": "Under",
+        "yes": "Yes (BTTS)",
+        "no": "No (BTTS)",
+        "scores": f"{player} Scores" if player else "Scores",
+        "no_goal": "No Goal",
+        "assists": f"{player} Assists" if player else "Assists",
+        "no_assist": "No Assist",
+        "first_scorer": f"{player} First" if player else "First Scorer",
+        "not_first": "Not First",
+        "top_scorer": f"{player} Top Scorer" if player else "Top Scorer",
+        "not_top": "Not Top Scorer",
+        "distance": "Goes Distance",
+        "finish": "Stopped Early",
+        "tiebreak": "Tiebreak",
+        "no_tiebreak": "No Tiebreak",
+        "p1_set1": entity1,
+        "p2_set1": entity2,
+        "ht_home_win": f"HT: {entity1}",
+        "ht_draw": "HT: Draw",
+        "ht_away_win": f"HT: {entity2}",
+        "f1_ko": f"{entity1} KO/TKO",
+        "f1_sub": f"{entity1} Submission",
+        "f1_dec": f"{entity1} Decision",
+        "f2_ko": f"{entity2} KO/TKO",
+        "f2_sub": f"{entity2} Submission",
+        "f2_dec": f"{entity2} Decision",
+        "f1_ko_tko": f"{entity1} KO/TKO",
+        "f2_ko_tko": f"{entity2} KO/TKO",
+        "f1_dec_w": f"{entity1} Decision",
+        "f2_dec_w": f"{entity2} Decision",
+        "left_foot_goal": f"Left Foot Goal",
+        "right_foot_goal": f"Right Foot Goal",
+        "head_goal": "Header Goal",
+        "other": "Other / No",
+    }
+    if key in _PROP_LABELS:
+        return _PROP_LABELS[key]
+    # e.g. "left_foot_goal", "2_1" correct score
+    return key.replace("_", " ").replace(" goal", " Goal").title()
 
 
 def render(result) -> None:
@@ -52,20 +93,34 @@ def render(result) -> None:
 
     # Header
     sport_emoji = {
-        "Football": "⚽", "Tennis": "🎾", "UFC/MMA": "🥊",
+        "Football": "⚽", "Tennis": "🎾", "Ufc/Mma": "🥊", "Ufc": "🥊",
         "Boxing": "🥊", "Cricket": "🏏", "Darts": "🎯",
         "Badminton": "🏸", "Table Tennis": "🏓",
-    }.get(result.sport, "🏆")
+    }.get(result.sport.title(), "🏆")
 
-    title = f"{sport_emoji}  {result.entity1}  vs  {result.entity2}"
-    subtitle = f"{result.competition}  •  {result.date}" if result.competition else result.date
+    is_prop = getattr(result, "bet_type", "match_result") != "match_result"
+    prop_desc = getattr(result, "prop_description", "")
+    prop_player = getattr(result, "prop_player", "")
+
+    if is_prop and prop_desc:
+        title = f"{sport_emoji}  {prop_desc}"
+        subtitle_parts = [f"{result.entity1} vs {result.entity2}"]
+    else:
+        title = f"{sport_emoji}  {result.entity1}  vs  {result.entity2}"
+        subtitle_parts = []
+
+    if result.competition:
+        subtitle_parts.append(result.competition)
+    subtitle_parts.append(result.date)
     if result.venue and result.venue not in ("Unknown", ""):
-        subtitle += f"  •  {result.venue}"
+        subtitle_parts.append(result.venue)
+    subtitle = "  •  ".join(subtitle_parts)
 
+    border = "magenta" if is_prop else "bright_blue"
     console.print(Panel(
         Text(subtitle, justify="center", style="dim"),
         title=f"[bold white]{title}[/bold white]",
-        border_style="bright_blue",
+        border_style=border,
         padding=(0, 2),
     ))
 
@@ -90,7 +145,8 @@ def render(result) -> None:
         if prob is None:
             continue
 
-        label = _outcome_label(key, result.entity1, result.entity2)
+        label = _outcome_label(key, result.entity1, result.entity2,
+                               getattr(result, "prop_player", ""))
         bar = _prob_bar(prob)
         model_pct = f"{prob * 100:.1f}%"
 
@@ -334,7 +390,8 @@ def prompt_log_trade(result) -> tuple:
     for key, prob in result.probabilities.items():
         if prob is None:
             continue
-        label = _outcome_label(key, result.entity1, result.entity2)
+        label = _outcome_label(key, result.entity1, result.entity2,
+                               getattr(result, "prop_player", ""))
         outcomes.append((key, label, prob))
 
     console.print("  Which outcome are you betting on?")

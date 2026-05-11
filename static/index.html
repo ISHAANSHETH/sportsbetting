@@ -585,10 +585,12 @@
     const card = document.getElementById('resultCard');
     const sportEmoji = emojiForSport(d.sport);
 
+    const isProp = d.bet_type && d.bet_type !== 'match_result';
     const meta = [
-      d.competition && `<span>🏆 ${d.competition}</span>`,
+      d.competition && `<span>🏆 ${escHtml(d.competition)}</span>`,
       d.date && `<span>📅 ${d.date}</span>`,
-      d.venue && d.venue !== 'Unknown' && `<span>📍 ${d.venue}</span>`,
+      d.venue && d.venue !== 'Unknown' && `<span>📍 ${escHtml(d.venue)}</span>`,
+      isProp && d.prop_player && `<span>👤 ${escHtml(d.prop_player)}</span>`,
     ].filter(Boolean).join('');
 
     const outcomeRows = d.outcomes.map(o => {
@@ -618,8 +620,11 @@
         <div class="match-header">
           <div class="match-sport">${sportEmoji} ${escHtml(d.sport)}</div>
           <div class="match-title">
-            ${escHtml(d.entity1)} <span class="match-vs">vs</span> ${escHtml(d.entity2)}
+            ${isProp && d.prop_description
+              ? escHtml(d.prop_description)
+              : `${escHtml(d.entity1)} <span class="match-vs">vs</span> ${escHtml(d.entity2)}`}
           </div>
+          ${isProp ? `<div style="font-size:13px;color:var(--text-mid);margin-top:2px">${escHtml(d.entity1)} vs ${escHtml(d.entity2)}</div>` : ''}
           <div class="match-meta">${meta}</div>
         </div>
 

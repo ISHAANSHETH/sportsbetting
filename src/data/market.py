@@ -90,6 +90,77 @@ def _search_kalshi(query: str) -> Optional[dict]:
     return None
 
 
+def get_prop_market_odds(team1: str, team2: str, bet_type: str,
+                         prop_params: dict, player: str = "") -> Optional[dict]:
+    """
+    Search Polymarket/Kalshi for a specific prop market.
+    Returns {outcome_key: prob} or None.
+    """
+    # Build a focused search query
+    stat = prop_params.get("stat", "")
+    threshold = prop_params.get("threshold", "")
+    direction = prop_params.get("direction", "")
+    foot = prop_params.get("foot", "")
+
+    if bet_type == "over_under":
+        query = f"{team1} {team2} over {threshold} {stat}s"
+    elif bet_type == "btts":
+        query = f"{team1} {team2} both teams score"
+    elif bet_type in ("player_scorer", "player_foot", "player_header", "player_first_scorer"):
+        query = f"{player or team1} score goal"
+    elif bet_type == "method_victory":
+        query = f"{team1} {team2} {prop_params.get('method', 'ko')} victory"
+    elif bet_type == "goes_distance":
+        query = f"{team1} {team2} goes distance"
+    elif bet_type == "tennis_first_set":
+        query = f"{team1} {team2} first set"
+    elif bet_type == "tennis_tiebreak":
+        query = f"{team1} {team2} tiebreak"
+    else:
+        query = f"{team1} {team2} {bet_type}"
+
+    pm = _search_polymarket(query)
+    if pm and pm.get("probs"):
+        return _normalize_prop_probs(pm["probs"], bet_type, prop_params, team1, team2)
+
+    ka = _search_kalshi(query)
+    if ka and ka.get("probs"):
+        return _normalize_prop_probs(ka["probs"], bet_type, prop_params, team1, team2)
+
+    return None
+
+
+def _normalize_prop_probs(probs: dict, bet_type: str, prop_params: dict,
+                           t1: str, t2: str) -> Optional[dict]:
+    """Map raw market probs to the correct outcome keys for a prop type."""
+    if bet_type == "over_under":
+        threshold = prop_params.get("threshold", 2.5)
+        over_key = f"over_{threshold}"
+        under_key = f"under_{threshold}"
+        for k, v in probs.items():
+            if "over" in k or "yes" in k or "more" in k:
+                rest = 1 - v
+                return {"over": round(v, 4), "under": round(rest, 4)}
+        return None
+
+    if bet_type == "btts":
+        for k, v in probs.items():
+            if "yes" in k or "both" in k:
+                return {"yes": round(v, 4), "no": round(1 - v, 4)}
+
+    if bet_type in ("player_scorer", "player_foot", "player_header"):
+        for k, v in probs.items():
+            if "yes" in k or "score" in k or "goal" in k:
+                return {"scores": round(v, 4), "no_goal": round(1 - v, 4)}
+
+    if bet_type == "goes_distance":
+        for k, v in probs.items():
+            if "yes" in k or "distance" in k or "full" in k:
+                return {"distance": round(v, 4), "finish": round(1 - v, 4)}
+
+    return None
+
+
 def get_market_odds(team1: str, team2: str, sport: str = "") -> dict:
     """
     Fetch implied probabilities from prediction markets.

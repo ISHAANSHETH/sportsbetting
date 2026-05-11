@@ -48,11 +48,17 @@ SUPPORTED_SPORTS = [
 
 EXAMPLE_QUERIES = [
     "Portugal vs Spain Nations League",
-    "Djokovic vs Alcaraz Wimbledon",
-    "Jon Jones vs Stipe Miocic UFC",
-    "India vs Australia T20 World Cup",
-    "Tyson Fury vs Oleksandr Usyk boxing",
-    "Michael van Gerwen vs Luke Humphries PDC",
+    "Over 2.5 goals Arsenal vs Liverpool",
+    "BTTS Barcelona vs Real Madrid",
+    "Will Haaland score vs Real Madrid",
+    "Will Neymar score with his left foot vs Brazil",
+    "Djokovic vs Alcaraz — first set Wimbledon",
+    "Djokovic vs Alcaraz — tiebreak Wimbledon",
+    "Jon Jones vs Stipe Miocic — wins by KO",
+    "Jon Jones vs Stipe Miocic — goes the distance",
+    "Tyson Fury vs Oleksandr Usyk method of victory boxing",
+    "India vs Australia over 350 runs T20 World Cup",
+    "Rohit Sharma top scorer vs England",
 ]
 
 
@@ -98,8 +104,19 @@ async def predict(req: PredictRequest):
     if not handler:
         raise HTTPException(status_code=422, detail=f"Sport '{sport}' not supported")
 
+    bet_type = parsed.get("bet_type", "match_result")
+    prop_params = parsed.get("prop_params", {})
+    prop_player = parsed.get("prop_player", "")
+
     try:
-        result = handler.predict(entity1, entity2, date, context)
+        from src.predictor import _predict_prop
+        if bet_type == "match_result":
+            result = handler.predict(entity1, entity2, date, context)
+        else:
+            result = _predict_prop(
+                sport, entity1, entity2, date, context,
+                bet_type, prop_params, prop_player, handler,
+            )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
@@ -143,6 +160,9 @@ def _serialize(result, sport: str) -> dict:
         "news_flags": result.news_flags,
         "data_sources": result.data_sources,
         "has_market": result.market_probs is not None,
+        "bet_type": getattr(result, "bet_type", "match_result"),
+        "prop_description": getattr(result, "prop_description", ""),
+        "prop_player": getattr(result, "prop_player", ""),
         "model_breakdown": {
             k: {kk: round(vv * 100, 1) for kk, vv in v.items()} if v else {}
             for k, v in (result.model_breakdown or {}).items()
@@ -151,6 +171,22 @@ def _serialize(result, sport: str) -> dict:
 
 
 def _outcome_labels(e1: str, e2: str, probs: dict) -> dict:
+    _PROP = {
+        "over": "Over", "under": "Under",
+        "yes": "Yes (BTTS)", "no": "No (BTTS)",
+        "scores": "Scores", "no_goal": "No Goal",
+        "assists": "Assists", "no_assist": "No Assist",
+        "first_scorer": "First Scorer", "not_first": "Not First",
+        "top_scorer": "Top Scorer", "not_top": "Not Top Scorer",
+        "distance": "Goes Distance", "finish": "Stopped Early",
+        "tiebreak": "Tiebreak", "no_tiebreak": "No Tiebreak",
+        "p1_set1": e1, "p2_set1": e2,
+        "ht_home_win": f"HT: {e1}", "ht_draw": "HT: Draw", "ht_away_win": f"HT: {e2}",
+        "f1_ko": f"{e1} KO/TKO", "f1_sub": f"{e1} Sub", "f1_dec": f"{e1} Decision",
+        "f2_ko": f"{e2} KO/TKO", "f2_sub": f"{e2} Sub", "f2_dec": f"{e2} Decision",
+        "left_foot_goal": "Left Foot Goal", "right_foot_goal": "Right Foot Goal",
+        "head_goal": "Header Goal", "other": "Other / No",
+    }
     labels = {}
     for key in probs:
         if key in ("home_win", "p1_win", "f1_win"):
@@ -159,6 +195,8 @@ def _outcome_labels(e1: str, e2: str, probs: dict) -> dict:
             labels[key] = e2
         elif key == "draw":
             labels[key] = "Draw"
+        elif key in _PROP:
+            labels[key] = _PROP[key]
         else:
             labels[key] = key.replace("_", " ").title()
     return labels
