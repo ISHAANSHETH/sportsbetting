@@ -38,12 +38,21 @@ cd sportsbetting
 pip install -r requirements.txt
 ```
 
-### Web app (recommended — share with anyone)
+### Web app (local)
 
 ```bash
 python app.py
 # Open http://localhost:8000
 ```
+
+### Deploy to Vercel (share a public URL)
+
+```bash
+npm i -g vercel   # one-time install
+vercel            # follow prompts — done in ~30 seconds
+```
+
+> **Free tier note:** Vercel Hobby has a 10-second function timeout. Most predictions finish in 3–8s but heavy football queries can hit the limit. Upgrade to Vercel Pro (60s timeout) or use Railway/Render if you hit it regularly.
 
 ### CLI
 
