@@ -1,8 +1,9 @@
-# Runtime cache (auto-created, not for version control)
+# Runtime cache and user data (auto-created, not for version control)
 data/cache/
 data/historical/
 data/elo/
 data/models/
+data/trades.json
 
 # Python
 __pycache__/
