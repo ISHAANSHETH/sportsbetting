@@ -386,6 +386,8 @@ let currentResult = null;
 let pendingSettleId = null;
 let pendingExec = null;
 let watchlistData = [];
+let marketsRefreshTimer = null;
+let currentMarketsDays = 1;
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
 function goView(name) {
@@ -396,15 +398,18 @@ function goView(name) {
   location.hash = name;
   if (name === 'portfolio') loadPortfolio();
   if (name === 'watchlist') loadWatchlist();
-  if (name === 'markets') loadMarkets(1);
+  if (name === 'markets') { loadMarkets(currentMarketsDays); startMarketsRefresh(); }
+  else stopMarketsRefresh();
 }
 
 window.addEventListener('load', () => {
   const hash = location.hash.replace('#','') || 'markets';
-  goView(['markets','predict','portfolio','watchlist'].includes(hash) ? hash : 'markets');
+  const view = ['markets','predict','portfolio','watchlist'].includes(hash) ? hash : 'markets';
+  goView(view);
   checkExecStatus();
   loadExamples();
   pollAlerts();
+  if (view === 'markets') startMarketsRefresh();
 });
 
 // ── Execution status ──────────────────────────────────────────────────────────
@@ -434,15 +439,28 @@ async function pollAlerts() {
       banner.classList.remove('active');
     }
   } catch {}
-  setTimeout(pollAlerts, 5 * 60 * 1000);
+  setTimeout(pollAlerts, 30 * 1000);
 }
 
 async function checkAlerts() { await pollAlerts(); loadWatchlist(); }
 
 // ── Markets ───────────────────────────────────────────────────────────────────
-async function loadMarkets(days, btn) {
+function startMarketsRefresh() {
+  stopMarketsRefresh();
+  marketsRefreshTimer = setInterval(() => {
+    if (document.getElementById('view-markets').classList.contains('active')) {
+      loadMarkets(currentMarketsDays, null, true);
+    }
+  }, 60 * 1000);
+}
+function stopMarketsRefresh() {
+  if (marketsRefreshTimer) { clearInterval(marketsRefreshTimer); marketsRefreshTimer = null; }
+}
+
+async function loadMarkets(days, btn, silent) {
+  currentMarketsDays = days;
   if (btn) { document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
-  document.getElementById('fixtureList').innerHTML = '<div class="view-loading">Loading fixtures…</div>';
+  if (!silent) document.getElementById('fixtureList').innerHTML = '<div class="view-loading">Loading fixtures…</div>';
   try {
     const d = await fetch(`/api/markets/today?days=${days}`).then(r => r.json());
     renderFixtures(d.fixtures || []);
