@@ -91,8 +91,91 @@ def stats(trades: list) -> dict:
         "pending": len([t for t in trades if t["status"] == "pending"]),
         "settled": len(settled),
         "wins": len(won),
-        "win_rate": len(won) / len(settled) * 100 if settled else 0,
-        "total_stake": total_stake,
-        "total_pnl": total_pnl,
-        "roi": total_pnl / total_stake * 100 if total_stake else 0,
+        "win_rate": round(len(won) / len(settled) * 100, 1) if settled else 0,
+        "total_stake": round(total_stake, 2),
+        "total_pnl": round(total_pnl, 2),
+        "roi": round(total_pnl / total_stake * 100, 1) if total_stake else 0,
+    }
+
+
+def brier_score(trades: list) -> dict:
+    """Calibration score — lower is better. Also computes market Brier for comparison."""
+    settled = [
+        t for t in trades
+        if t["status"] in ("won", "lost") and t.get("model_prob") is not None
+    ]
+    if not settled:
+        return {"yours": None, "market": None, "beating": None, "n": 0}
+
+    yours_sq = []
+    market_sq = []
+    for t in settled:
+        outcome = 1.0 if t["status"] == "won" else 0.0
+        model_p = t["model_prob"] / 100.0
+        yours_sq.append((model_p - outcome) ** 2)
+        if t.get("market_prob") is not None:
+            market_sq.append((t["market_prob"] / 100.0 - outcome) ** 2)
+
+    yours = round(sum(yours_sq) / len(yours_sq), 4)
+    market = round(sum(market_sq) / len(market_sq), 4) if market_sq else None
+    return {
+        "yours": yours,
+        "market": market,
+        "beating": (yours < market) if market is not None else None,
+        "n": len(settled),
+    }
+
+
+def by_sport(trades: list) -> dict:
+    """Break down P&L, win rate, ROI, and avg edge by sport."""
+    sports: dict = {}
+    for t in trades:
+        sp = t.get("sport", "unknown")
+        if sp not in sports:
+            sports[sp] = {"count": 0, "wins": 0, "settled": 0, "pnl": 0.0, "stake": 0.0, "edge_sum": 0.0, "edge_n": 0}
+        s = sports[sp]
+        s["count"] += 1
+        if t["status"] in ("won", "lost"):
+            s["settled"] += 1
+            s["stake"] += t.get("stake", 0) or 0
+            s["pnl"] += t.get("pnl", 0) or 0
+            if t["status"] == "won":
+                s["wins"] += 1
+        if t.get("edge_pct") is not None:
+            s["edge_sum"] += t["edge_pct"]
+            s["edge_n"] += 1
+
+    result = {}
+    for sp, s in sports.items():
+        result[sp] = {
+            "count": s["count"],
+            "settled": s["settled"],
+            "win_rate": round(s["wins"] / s["settled"] * 100, 1) if s["settled"] else None,
+            "pnl": round(s["pnl"], 2),
+            "roi": round(s["pnl"] / s["stake"] * 100, 1) if s["stake"] else None,
+            "avg_edge": round(s["edge_sum"] / s["edge_n"], 1) if s["edge_n"] else None,
+        }
+    return result
+
+
+def best_worst(trades: list, n: int = 3) -> dict:
+    """Top-n wins and worst-n losses by P&L."""
+    settled = [t for t in trades if t["status"] in ("won", "lost") and t.get("pnl") is not None]
+    sorted_all = sorted(settled, key=lambda t: t["pnl"], reverse=True)
+    def _fmt(t):
+        return {
+            "id": t["id"],
+            "entity1": t["entity1"],
+            "entity2": t["entity2"],
+            "sport": t.get("sport", ""),
+            "bet_label": t.get("bet_label", ""),
+            "stake": t.get("stake"),
+            "odds": t.get("odds"),
+            "pnl": t["pnl"],
+            "status": t["status"],
+            "timestamp": t.get("timestamp", ""),
+        }
+    return {
+        "best": [_fmt(t) for t in sorted_all[:n]],
+        "worst": [_fmt(t) for t in sorted_all[-n:] if t["pnl"] < 0],
     }

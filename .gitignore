@@ -4,6 +4,7 @@ data/historical/
 data/elo/
 data/models/
 data/trades.json
+data/watchlist.json
 
 # Python
 __pycache__/

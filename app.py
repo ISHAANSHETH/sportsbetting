@@ -202,6 +202,162 @@ def _outcome_labels(e1: str, e2: str, probs: dict) -> dict:
     return labels
 
 
+# ── Trade log (web) ──────────────────────────────────────────────────────────
+
+class TradeLogRequest(BaseModel):
+    query: str
+    outcome_key: str
+    bet_label: str
+    stake: float
+    odds: float
+
+
+class SettleRequest(BaseModel):
+    won: bool
+
+
+@app.post("/api/trade/log")
+async def trade_log_endpoint(req: TradeLogRequest):
+    from src import trades as trade_log
+    parsed = query_parser.parse(req.query)
+    e1 = parsed.get("entity1", req.query)
+    e2 = parsed.get("entity2", "")
+    sport = parsed.get("sport", "football")
+
+    class _FakeResult:
+        entity1 = e1
+        entity2 = e2
+        competition = ""
+        date = ""
+        probabilities = {req.outcome_key: None}
+        market_probs = None
+        edges = {}
+        kelly_stake_pct = None
+        sport = sport
+
+    trade = trade_log.log(_FakeResult(), req.outcome_key, req.bet_label, req.stake, req.odds)
+    return trade
+
+
+@app.post("/api/trade/settle/{trade_id}")
+async def trade_settle_endpoint(trade_id: str, req: SettleRequest):
+    from src import trades as trade_log
+    t = trade_log.settle(trade_id, req.won)
+    if not t:
+        raise HTTPException(status_code=404, detail=f"Trade '{trade_id}' not found")
+    return t
+
+
+# ── Markets ──────────────────────────────────────────────────────────────────
+
+@app.get("/api/markets/today")
+async def get_markets_today(days: int = 2):
+    try:
+        from src.data.scrapers.fixtures import get_todays_fixtures
+        fixtures = get_todays_fixtures(days_ahead=max(1, min(days, 7)))
+        return {"fixtures": fixtures[:60]}
+    except Exception as e:
+        return {"fixtures": [], "error": str(e)}
+
+
+# ── Watchlist ─────────────────────────────────────────────────────────────────
+
+class WatchlistAddRequest(BaseModel):
+    entity1: str
+    entity2: str
+    sport: str = "football"
+
+
+@app.get("/api/watchlist")
+async def get_watchlist():
+    from src.alerts import load_watchlist
+    return {"items": load_watchlist()}
+
+
+@app.post("/api/watchlist/add")
+async def watchlist_add(req: WatchlistAddRequest):
+    from src.alerts import add_to_watchlist
+    item = add_to_watchlist(req.entity1, req.entity2, req.sport)
+    return {"ok": True, "item": item}
+
+
+@app.delete("/api/watchlist/remove")
+async def watchlist_remove(entity1: str, entity2: str):
+    from src.alerts import remove_from_watchlist
+    removed = remove_from_watchlist(entity1, entity2)
+    return {"ok": removed}
+
+
+# ── Alerts ────────────────────────────────────────────────────────────────────
+
+@app.get("/api/alerts")
+async def get_alerts(threshold: float = 5.0):
+    try:
+        from src.alerts import check_watchlist_movements
+        alerts = check_watchlist_movements(threshold_pp=threshold)
+        return {"alerts": alerts, "count": len(alerts)}
+    except Exception as e:
+        return {"alerts": [], "count": 0, "error": str(e)}
+
+
+# ── Portfolio ─────────────────────────────────────────────────────────────────
+
+@app.get("/api/portfolio")
+async def get_portfolio():
+    from src import trades as trade_log
+    trades = trade_log.load()
+    return {
+        "trades": trades,
+        "stats": trade_log.stats(trades),
+        "brier": trade_log.brier_score(trades),
+        "by_sport": trade_log.by_sport(trades),
+        **trade_log.best_worst(trades, n=3),
+    }
+
+
+# ── Execution ─────────────────────────────────────────────────────────────────
+
+class ExecutionRequest(BaseModel):
+    entity1: str
+    entity2: str
+    outcome_key: str
+    stake_usdc: float
+
+
+@app.get("/api/execution/status")
+async def execution_status():
+    from src.execution import is_configured, get_wallet_address
+    configured = is_configured()
+    return {
+        "configured": configured,
+        "wallet_address": get_wallet_address() if configured else None,
+    }
+
+
+@app.post("/api/execution/place")
+async def execution_place(req: ExecutionRequest):
+    from src.execution import is_configured, find_market, place_bet
+    if not is_configured():
+        raise HTTPException(
+            status_code=403,
+            detail="Wallet not configured. Set POLY_PRIVATE_KEY and POLY_API_KEY in .env",
+        )
+    if req.stake_usdc <= 0:
+        raise HTTPException(status_code=400, detail="stake_usdc must be > 0")
+
+    market_id = find_market(req.entity1, req.entity2)
+    if not market_id:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No open Polymarket market found for '{req.entity1} vs {req.entity2}'",
+        )
+
+    result = place_bet(market_id, req.outcome_key, req.stake_usdc)
+    if "error" in result:
+        raise HTTPException(status_code=502, detail=result["error"])
+    return result
+
+
 # Mount static files last so API routes take priority
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
