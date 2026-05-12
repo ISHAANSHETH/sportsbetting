@@ -251,15 +251,56 @@ async def trade_settle_endpoint(trade_id: str, req: SettleRequest):
 # ── Markets ──────────────────────────────────────────────────────────────────
 
 @app.get("/api/markets/today")
-async def get_markets_today(days: int = 2):
+async def get_markets_today(days: int = 2, force: int = 0):
     try:
         from src.data.scrapers.fixtures import get_todays_fixtures
+        from src.data import cache as _cache
+        if force:
+            # Bust the fixture cache so fresh data is fetched
+            for d in range(1, 8):
+                _cache.invalidate("fixtures_today", {"days": d, "sports": "None"})
         fixtures = get_todays_fixtures(days_ahead=max(1, min(days, 7)))
         sources = list({f.get("source", "unknown") for f in fixtures})
         return {"fixtures": fixtures[:100], "count": len(fixtures), "sources": sources}
     except Exception as e:
         import traceback
         return {"fixtures": [], "count": 0, "error": str(e), "detail": traceback.format_exc()}
+
+
+@app.get("/api/debug/fixtures")
+async def debug_fixtures():
+    """Returns raw diagnostic info from each fixture source."""
+    import requests
+    from datetime import datetime
+    from src.data.scrapers.fixtures import ESPN_HEADERS, SPORTSDB_HEADERS
+    results = {}
+    today = datetime.utcnow().strftime("%Y%m%d")
+    today_iso = datetime.utcnow().strftime("%Y-%m-%d")
+
+    # Test ESPN
+    try:
+        r = requests.get(
+            f"https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard",
+            params={"dates": today, "limit": 5},
+            headers=ESPN_HEADERS, timeout=10
+        )
+        results["espn"] = {"status": r.status_code, "events": len(r.json().get("events", [])) if r.status_code == 200 else 0}
+    except Exception as e:
+        results["espn"] = {"error": str(e)}
+
+    # Test TheSportsDB
+    try:
+        r = requests.get(
+            "https://www.thesportsdb.com/api/v1/json/3/eventsday.php",
+            params={"d": today_iso, "s": "Soccer"},
+            headers=SPORTSDB_HEADERS, timeout=10
+        )
+        data = r.json() if r.status_code == 200 else {}
+        results["sportsdb"] = {"status": r.status_code, "events": len(data.get("events") or [])}
+    except Exception as e:
+        results["sportsdb"] = {"error": str(e)}
+
+    return results
 
 
 # ── Watchlist ─────────────────────────────────────────────────────────────────

@@ -309,6 +309,7 @@
         <button class="day-btn active" onclick="loadMarkets(1,this)">Today</button>
         <button class="day-btn" onclick="loadMarkets(3,this)">3 days</button>
         <button class="day-btn" onclick="loadMarkets(7,this)">7 days</button>
+        <button class="day-btn" onclick="forceRefreshMarkets(this)" title="Bypass cache and re-fetch">⟳ Refresh</button>
       </div>
     </div>
     <div id="fixtureList"><div class="view-loading">Loading fixtures…</div></div>
@@ -472,6 +473,21 @@ async function loadMarkets(days, btn, silent) {
     if (countEl) countEl.textContent = `${d.count||0} fixtures${src}`;
     renderFixtures(d.fixtures || []);
   } catch(e) { document.getElementById('fixtureList').innerHTML = `<div class="no-fixtures">Could not reach server.<br><small>${e.message}</small></div>`; }
+}
+
+async function forceRefreshMarkets(btn) {
+  document.getElementById('fixtureList').innerHTML = '<div class="view-loading">Refreshing…</div>';
+  try {
+    const d = await fetch(`/api/markets/today?days=${currentMarketsDays}&force=1`).then(r => r.json());
+    if (d.error && (!d.fixtures || !d.fixtures.length)) {
+      document.getElementById('fixtureList').innerHTML = `<div class="no-fixtures">⚠️ ${d.error}<br><br><small>Run <code style="background:var(--surface2);padding:2px 6px;border-radius:3px">http://localhost:8000/api/debug/fixtures</code> to diagnose.</small></div>`;
+      return;
+    }
+    const src = d.sources && d.sources.length ? ` · via ${d.sources.join('+')}` : '';
+    const countEl = document.getElementById('marketsCount');
+    if (countEl) countEl.textContent = `${d.count||0} fixtures${src}`;
+    renderFixtures(d.fixtures || []);
+  } catch(e) { document.getElementById('fixtureList').innerHTML = `<div class="no-fixtures">Server error: ${e.message}</div>`; }
 }
 
 function renderFixtures(fixtures) {
