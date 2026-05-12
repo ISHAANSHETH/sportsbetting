@@ -255,9 +255,11 @@ async def get_markets_today(days: int = 2):
     try:
         from src.data.scrapers.fixtures import get_todays_fixtures
         fixtures = get_todays_fixtures(days_ahead=max(1, min(days, 7)))
-        return {"fixtures": fixtures[:60]}
+        sources = list({f.get("source", "unknown") for f in fixtures})
+        return {"fixtures": fixtures[:100], "count": len(fixtures), "sources": sources}
     except Exception as e:
-        return {"fixtures": [], "error": str(e)}
+        import traceback
+        return {"fixtures": [], "count": 0, "error": str(e), "detail": traceback.format_exc()}
 
 
 # ── Watchlist ─────────────────────────────────────────────────────────────────
