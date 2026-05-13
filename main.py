@@ -37,6 +37,7 @@ def _banner():
             ("    <match query>  ", "white"), ("— predict (e.g. Portugal vs Spain)\n", "dim"),
             ("    data <name>    ", "white"), ("— show raw data for a team/player before betting\n", "dim"),
             ("    today          ", "white"), ("— list today's & upcoming fixtures\n", "dim"),
+            ("    dashboard      ", "white"), ("— live Bloomberg-style terminal (4-panel)\n", "dim"),
             ("    trades         ", "white"), ("— view your bet history & P&L\n", "dim"),
             ("    settle <id>    ", "white"), ("— mark a trade won/lost (e.g. settle a3f9)\n", "dim"),
             ("    sports         ", "white"), ("— list all supported sports\n", "dim"),
@@ -247,6 +248,11 @@ def _dispatch(line: str) -> bool:
         _show_fixtures(days_ahead=3)
         return True
 
+    if low in ("dashboard", "live", "monitor", "terminal"):
+        from src.dashboard import run_dashboard
+        run_dashboard(scan_interval=60.0, days_ahead=2)
+        return True
+
     if low.startswith("today "):
         # e.g. "today 7" for 7 days ahead
         try:
@@ -300,6 +306,9 @@ def main():
             terminal.render_sports_list()
         elif low in ("today", "fixtures", "schedule"):
             _show_fixtures(days_ahead=3)
+        elif low in ("dashboard", "live", "monitor", "terminal"):
+            from src.dashboard import run_dashboard
+            run_dashboard(scan_interval=60.0, days_ahead=2)
         elif low.startswith("data ") or low.startswith("inspect "):
             name = query.split(" ", 1)[1].strip()
             _inspect(name)
