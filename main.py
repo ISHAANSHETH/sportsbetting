@@ -38,6 +38,8 @@ def _banner():
             ("    data <name>    ", "white"), ("— show raw data for a team/player before betting\n", "dim"),
             ("    today          ", "white"), ("— list today's & upcoming fixtures\n", "dim"),
             ("    dashboard      ", "white"), ("— live Bloomberg-style terminal (4-panel)\n", "dim"),
+            ("    ask <query>    ", "white"), ("— predict + LLM verdict (BET / SKIP / MARGINAL)\n", "dim"),
+            ("    place <id>     ", "white"), ("— submit a logged bet to Polymarket\n", "dim"),
             ("    trades         ", "white"), ("— view your bet history & P&L\n", "dim"),
             ("    settle <id>    ", "white"), ("— mark a trade won/lost (e.g. settle a3f9)\n", "dim"),
             ("    sports         ", "white"), ("— list all supported sports\n", "dim"),
@@ -253,6 +255,24 @@ def _dispatch(line: str) -> bool:
         run_dashboard(scan_interval=60.0, days_ahead=2)
         return True
 
+    if low.startswith("ask "):
+        query = cmd.split(" ", 1)[1].strip()
+        if query:
+            from src.verdict import ask_about
+            ask_about(query)
+        else:
+            console.print("  Usage: ask <match query>", style="dim red")
+        return True
+
+    if low.startswith("place "):
+        trade_id = cmd.split(" ", 1)[1].strip()
+        if trade_id:
+            from src.bet_cli import place_logged_trade
+            place_logged_trade(trade_id)
+        else:
+            console.print("  Usage: place <trade-id>", style="dim red")
+        return True
+
     if low.startswith("today "):
         # e.g. "today 7" for 7 days ahead
         try:
@@ -309,6 +329,12 @@ def main():
         elif low in ("dashboard", "live", "monitor", "terminal"):
             from src.dashboard import run_dashboard
             run_dashboard(scan_interval=60.0, days_ahead=2)
+        elif low.startswith("ask "):
+            from src.verdict import ask_about
+            ask_about(query.split(" ", 1)[1].strip())
+        elif low.startswith("place "):
+            from src.bet_cli import place_logged_trade
+            place_logged_trade(query.split(" ", 1)[1].strip())
         elif low.startswith("data ") or low.startswith("inspect "):
             name = query.split(" ", 1)[1].strip()
             _inspect(name)
