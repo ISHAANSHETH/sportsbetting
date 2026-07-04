@@ -33,7 +33,10 @@ class MLEnsemble:
         self.xgb_model: Optional[object] = None
         self.scaler: Optional[object] = None
         self.is_fitted = False
-        MODELS_DIR.mkdir(parents=True, exist_ok=True)
+        try:
+            MODELS_DIR.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass  # read-only filesystem (e.g. serverless) — model persistence unavailable
 
     def _model_path(self, name: str) -> Path:
         return MODELS_DIR / f"{self.sport}_{name}"

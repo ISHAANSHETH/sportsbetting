@@ -1,0 +1,6 @@
+#!/private/tmp/claude-501/-Users-ishaansheth-Desktop-Claude-Code-Daily-Brief/4be8181f-0dca-4fc1-bb71-7632ddaeefcd/scratchpad/sportsbetting/.venv/bin/python3.12
+import sys
+from numpy._configtool import main
+if __name__ == '__main__':
+    sys.argv[0] = sys.argv[0].removesuffix('.exe')
+    sys.exit(main())
